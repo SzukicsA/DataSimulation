@@ -116,7 +116,7 @@
 \subtitle{Using the example of estimating the statistical power of
 Student's independent \emph{t}-test}
 \author{Ian Hussey}
-\date{28 Februar, 2024}
+\date{05 März, 2024}
 
 \begin{document}
 \maketitle
@@ -288,9 +288,9 @@ do it manually for the moment.
 ## 6 control   -0.106
 \end{verbatim}
 
-\hypertarget{fit-a-students-independnet-t-test}{%
-\subsection{\texorpdfstring{Fit a Student's independnet
-\emph{t}-test}{Fit a Student's independnet t-test}}\label{fit-a-students-independnet-t-test}}
+\hypertarget{fit-a-students-independent-t-test}{%
+\subsection{\texorpdfstring{Fit a Student's independent
+\emph{t}-test}{Fit a Student's independent t-test}}\label{fit-a-students-independent-t-test}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -389,7 +389,7 @@ the hard coded original version.
   
   \FunctionTok{return}\NormalTok{(data)}
 \NormalTok{\}}
-  
+
 \CommentTok{\# call the function with example arguments}
 \NormalTok{generated\_data }\OtherTok{\textless{}{-}} \FunctionTok{generate\_data}\NormalTok{(}\AttributeTok{n\_control =} \DecValTok{50}\NormalTok{,}
                                 \AttributeTok{n\_intervention =} \DecValTok{50}\NormalTok{,}
@@ -667,10 +667,10 @@ having different number between them (e.g., control = 200, intervention
   Abstract the code further in some way, such as using more for-loops.
 \end{itemize}
 
-Before you look at this code, know that it much harder to understand and
-much harder to write too. I'm showing you this method so that you know
-it exists and is the most basic way of doing it - not because we are
-going to do it in any of the rest of this course.
+Before you look at this code, know that it's much harder to understand
+and much harder to write too. I'm showing you this method so that you
+know it exists and is the most basic way of doing it - not because we
+are going to do it in any of the rest of this course.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -798,7 +798,7 @@ invisible and abstract which is often difficult for new learners.
   \CommentTok{\# convert these variables into factors for plotting}
   \FunctionTok{mutate}\NormalTok{(}\AttributeTok{n\_control =} \FunctionTok{as.factor}\NormalTok{(n\_control), }
          \AttributeTok{n\_intervention =} \FunctionTok{as.factor}\NormalTok{(n\_intervention)) }\SpecialCharTok{|\textgreater{}}
-  \CommentTok{\# for each level of n\_control and n\_intervention, calculate power (proportion of iterations where signficiant results were found)}
+  \CommentTok{\# for each level of n\_control and n\_intervention, calculate power (proportion of iterations where significant results were found)}
   \FunctionTok{group\_by}\NormalTok{(n\_control, }
 \NormalTok{           n\_intervention) }\SpecialCharTok{|\textgreater{}}
   \FunctionTok{summarize}\NormalTok{(}\AttributeTok{power =} \FunctionTok{mean}\NormalTok{(p }\SpecialCharTok{\textless{}}\NormalTok{ .}\DecValTok{05}\NormalTok{), }\AttributeTok{.groups =} \StringTok{"drop"}\NormalTok{)}
@@ -1076,7 +1076,7 @@ We'll improve two things while we do it.
 
 You might have noticed that sometimes the results of the simulations
 above have strange results between the sample-size conditions. E.g.,
-some conditions with higher sample sizes have slighlty lower estimated
+some conditions with higher sample sizes have slightly lower estimated
 power. This shouldn't be the case, as high sample sizes = more power.
 Why might this be the case?
 
@@ -1207,9 +1207,9 @@ of this chunk alone represent a working simulation.
   
 
 \CommentTok{\# \# optional: save results to disk}
-\CommentTok{\# write\_rds(simulation, "simulation\_1\_results.rds")}
+\FunctionTok{write\_rds}\NormalTok{(simulation, }\StringTok{"simulation\_1\_results.rds"}\NormalTok{)}
 \CommentTok{\# \# read from disk in future if it exists already}
-\CommentTok{\# simulation \textless{}{-} read\_rds("simulation\_1\_results.rds")}
+\NormalTok{simulation }\OtherTok{\textless{}{-}} \FunctionTok{read\_rds}\NormalTok{(}\StringTok{"simulation\_1\_results.rds"}\NormalTok{)}
 
 
 \CommentTok{\# summarise simulation results over the iterations {-}{-}{-}{-}}

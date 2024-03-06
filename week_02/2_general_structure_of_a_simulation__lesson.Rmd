@@ -5,12 +5,9 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   pdf_document:
     toc: true
-  # html_document:
-  #   code_folding: show
-  #   highlight: haddock
-  #   theme: flatly
-  #   toc: true
-  #   toc_float: true
+  html_document:
+    toc: true
+    df_print: paged
 subtitle: "Using the example of estimating the statistical power of Student's independent
   *t*-test"
 ---
@@ -84,7 +81,7 @@ head(generated_data)
 
 ```
 
-## Fit a Student's independnet *t*-test 
+## Fit a Student's independent *t*-test 
 
 ```{r}
 
@@ -149,7 +146,7 @@ generate_data <- function(n_control, # the parameters are now function arguments
   
   return(data)
 }
-  
+
 # call the function with example arguments
 generated_data <- generate_data(n_control = 50,
                                 n_intervention = 50,
@@ -311,7 +308,7 @@ For example, if I wanted to see how changing the number of participants in (a) t
 - Repeat my code a lot. This is always a bad idea. Repeating simple tasks we're bad at doing ourselves is the reason we invented computers.
 - Abstract the code further in some way, such as using more for-loops.
 
-Before you look at this code, know that it much harder to understand and much harder to write too. I'm showing you this method so that you know it exists and is the most basic way of doing it - not because we are going to do it in any of the rest of this course.
+Before you look at this code, know that it's much harder to understand and much harder to write too. I'm showing you this method so that you know it exists and is the most basic way of doing it - not because we are going to do it in any of the rest of this course.
 
 ```{r}
 
@@ -429,7 +426,7 @@ simulation_summary <- simulation |>
   # convert these variables into factors for plotting
   mutate(n_control = as.factor(n_control), 
          n_intervention = as.factor(n_intervention)) |>
-  # for each level of n_control and n_intervention, calculate power (proportion of iterations where signficiant results were found)
+  # for each level of n_control and n_intervention, calculate power (proportion of iterations where significant results were found)
   group_by(n_control, 
            n_intervention) |>
   summarize(power = mean(p < .05), .groups = "drop")
@@ -658,7 +655,7 @@ Now let's bring all the code together and run the simulation for real. We'll imp
 
 *Issue 1*
 
-You might have noticed that sometimes the results of the simulations above have strange results between the sample-size conditions. E.g., some conditions with higher sample sizes have slighlty lower estimated power. This shouldn't be the case, as high sample sizes = more power. Why might this be the case?
+You might have noticed that sometimes the results of the simulations above have strange results between the sample-size conditions. E.g., some conditions with higher sample sizes have slightly lower estimated power. This shouldn't be the case, as high sample sizes = more power. Why might this be the case?
 
 Because, just like in an experiment with human participants, your sample size matters. We have only collected data from 100 iterations, and so the standard errors around each estimate will still be quite large. In the final simulation below, we'll set `iterations` to `1000` so that we have a lot more (simulated) data to base our inferences on. Note that this may take a minute or two to run depending on how fast your computer is. In general, simulations can be computationally intensive to run as you're applying an analysis not once but thousands of times.
 
@@ -769,9 +766,9 @@ simulation <-
   
 
 # # optional: save results to disk
-# write_rds(simulation, "simulation_1_results.rds")
+write_rds(simulation, "simulation_1_results.rds")
 # # read from disk in future if it exists already
-# simulation <- read_rds("simulation_1_results.rds")
+simulation <- read_rds("simulation_1_results.rds")
 
 
 # summarise simulation results over the iterations ----

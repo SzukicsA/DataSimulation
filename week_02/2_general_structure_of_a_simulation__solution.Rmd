@@ -5,7 +5,7 @@ author: "[student's name]"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
-    code_folding: hide
+    code_folding: show
     highlight: haddock
     theme: flatly
     toc: yes
@@ -15,12 +15,9 @@ output:
 # Check your learning
 
 - What are the five essential components of a simulation study?
-- Can you explain what `tidyr::expand_grid()` does (in the context of a simulation)?
-It creates a df with all possible combionations of variable values
-- Can you explain what `purrr::pmap()` does (in the context of the simulation workflow above)?
-It applies a functions to a list of multiple variables
+- Can you explain what `tidyr::expand_grid()` does (in the context of a simulation)? 
+- Can you explain what `purrr::pmap()` does (in the context of the simulation workflow above)? 
 - Broadly speaking, what does changing the number of iterations used in a simulation do to the results of that simulation, and why? What analogy can be drawn with experiments with real participants?
-The more iterations the higher the power
 
 # Apply your learning
 
@@ -47,11 +44,12 @@ When modifying the code:
 
 ```{r}
 
-# # remove all objects from environment ----
-# rm(list = ls())
+# remove all objects from environment ----
+rm(list = ls())
 
 
 # dependencies ----
+# repeated here for the sake of completeness 
 
 library(tidyr)
 library(dplyr)
@@ -91,13 +89,10 @@ generate_data <- function(n_control,
 
 
 # define data analysis function ----
-analyse_data <- function(data) {
-  # Students dependencies
-  require(effsize)
-  
+analyse_data_students <- function(data) {
   res_t_test <- t.test(formula = score ~ condition, 
                        data = data,
-                       var.equal = FALSE,
+                       var.equal = TRUE,
                        alternative = "two.sided")
   
   res <- tibble(p_students = res_t_test$p.value)
@@ -105,39 +100,32 @@ analyse_data <- function(data) {
   return(res)
 }
 
-# Welch dependencies
-analyse_welch_data <- function(data) {
-  
-  
-  require(effsize)
-  
-  res_welch_test <- t.test(formula = score ~ condition, 
+# define data analysis function ----
+analyse_data_welches <- function(data) {
+  res_t_test <- t.test(formula = score ~ condition, 
                        data = data,
-                       var.equal = TRUE,
+                       var.equal = FALSE,
                        alternative = "two.sided")
   
-  res <- tibble(p_welch    = res_welch_test$p.value)
-  
+  res <- tibble(p_welches = res_t_test$p.value)
+
   return(res)
 }
 
 
 # define experiment parameters ----
-# note: these are the correct ones I want you to simulate. 
 experiment_parameters_grid <- expand_grid(
-  n_control = 50, # notice that the two sample sizes are different
+  n_control = 50,
   n_intervention = 25,
-  mean_control = 0, # notice that the two means are both 0: the population difference in means is null.
-  mean_intervention = 0,
-  sd_control = 0.66, # notice that the two sample variances (via SDs) are different
+  mean_control = 0,
+  mean_intervention = 0, 
+  sd_control = 0.66,
   sd_intervention = 1.33,
-  iteration = 1:100 # the final simulation needs lots of p values for a good plot
-  # iteration = 1:5000 # the final simulation needs lots of p values for a good plot
+  iteration = 1:5000 # increased number of iterations for more stable estimates. NB real stimulation are often much higher again.
 )
 
-
 # run simulation ----
-simulation_students <- 
+simulation <- 
   # using the experiment parameters
   experiment_parameters_grid |>
   
@@ -151,33 +139,45 @@ simulation_students <-
                                generate_data)) |>
   
   # apply the analysis function to the generated data using the parameters relevant to analysis
-  mutate(analysis_results = pmap(list(generated_data),
-                                 analyse_data))
+  mutate(analysis_results_students = pmap(list(generated_data),
+                                          analyse_data_students),
+         analysis_results_welches = pmap(list(generated_data),
+                                         analyse_data_welches))
+
 
 # summarise simulation results over the iterations ----
-## estimate power  
-## ie what proportion of p values are significant (< .05)
-simulation_summary <- simulation |>
-  unnest(analysis_results) |>
-  mutate(n_control = as.factor(n_control),
-         n_intervention = as.factor(n_intervention)) |>
-  group_by(n_control,
-           n_intervention) |>
-  summarize(power_student = mean(p_students < .05),
-            .groups = "drop")
+simulation_reshaped <- simulation |>
+  unnest(analysis_results_students) |>
+  unnest(analysis_results_welches) |>
+  pivot_longer(cols = c("p_students", "p_welches"),
+               names_to = "test",
+               values_to = "p") 
 
-simulation_welch_summary <- simulation_welch |>
-  unnest(analysis_welch_results) |>
-  mutate(n_control = as.factor(n_control),
-         n_intervention = as.factor(n_intervention)) |>
-  group_by(n_control,
-           n_intervention) |>
-  summarize(power_welch = mean(p_welch < .95),
-            .groups = "drop")
+# table 
+simulation_reshaped |>
+  group_by(test) |>
+  summarize(FPR = janitor::round_half_up(mean(p < .05), 2))
 
+# plot
+ggplot(simulation_reshaped, aes(p)) + 
+  geom_histogram(boundary = 0, binwidth = 0.05) +
+  geom_vline(xintercept = 0.05, color = "orange") +
+  facet_wrap(~ test)
 
+# plot zoomed in on p values between 0 and 0.10
+ggplot(simulation_reshaped, aes(p)) + 
+  geom_histogram(boundary = 0, binwidth = 0.01) +
+  geom_vline(xintercept = 0.05, color = "orange") +
+  facet_wrap(~ test) +
+  coord_cartesian(xlim = c(0, 0.1))
 
 ```
+
+# Conclusion and further reading
+
+These simulations suggest that we should generally use the Welch's t-test rather than the Student's t-test, as the former is either equal to or better than the latter test across a range of assumptions either being met or broken. 
+
+This point is is made and expanded on in a series of useful simulations by Delacre, Lakens & Leys (2017) "Why Psychologists Should by Default Use Welch’s t-test Instead of Student’s t-test" (see also their 2022 correction). To see a good example of a published simulation study that goes beyond what we've done here but makes substantively the same point, please read Delacre et al. (2017).
 
 # Session info
 
