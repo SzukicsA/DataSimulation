@@ -1,16 +1,24 @@
 ---
 title: "Understanding *p* values using a simulations"
-subtitle: "Using the example of Welch's independent *t*-test"
 author: "Ian Hussey"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
+  pdf_document:
+    toc: true
   html_document:
     code_folding: show
     highlight: haddock
     theme: flatly
-    toc: yes
-    toc_float: yes
+    toc: true
+    toc_float: true
+subtitle: "Using the example of Welch's independent *t*-test"
 ---
+
+```{r}
+library(tidyverse)
+```
+
+
 
 # Overview of tutorial
 
@@ -150,6 +158,8 @@ library(readr)
 library(purrr) 
 library(ggplot2)
 library(effsize)
+library(kableExtra)
+library(janitor)
 
 
 # set the seed ----
