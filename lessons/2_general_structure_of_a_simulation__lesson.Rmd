@@ -8,8 +8,7 @@ output:
   html_document:
     toc: true
     df_print: paged
-subtitle: "Using the example of estimating the statistical power of Student's independent
-  *t*-test"
+subtitle: "Using the example of estimating the statistical power of Student's independent *t*-test"
 ---
 
 # Overview of tutorial

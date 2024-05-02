@@ -3,14 +3,16 @@ title: "Foundational concepts for simulation studies"
 author: "Ian Hussey"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
+  pdf_document:
+    latex_engine: lualatex
+    #latex_engine: xelatex  # You can also use lualatex
+    #toc: true
   html_document:
     code_folding: show
     highlight: haddock
     theme: flatly
     toc: true
     toc_float: true
-  pdf_document:
-    toc: true
 subtitle: "Populations, samples, pseudo-random number generators, for-loops, and parameter
   recovery"
 ---
@@ -69,8 +71,10 @@ rct_simulation_plot <- function(n_per_group, m1, m2, sd1, sd2){
     scale_fill_viridis_d(begin = 0.3, end = 0.7, option = "G") +
     ylab("Count") + 
     theme_linedraw() + 
-    theme(panel.grid.minor = element_blank(), 
-          text = element_text(family = "Courier New")) +
+    theme(panel.grid.minor = element_blank()
+          #, 
+          #text = element_text(family = "Courier New")
+          ) +
     facet_wrap(~ condition, ncol = 1)
   
   return(p)
@@ -186,9 +190,11 @@ Note that normal distributions are sometimes referred to as Gaussian distributio
 
 `rnorm()` is like magic, because it allows you to create data that follows the assumptions of our most common statistical analyses. The difference between simulated data, e.g., from `rnorm()`, and real data from participants, is that we can know what the real population value - the data generating signals - are in simulated data. Whereas with real participant data we don't ever know this for sure. We use real data to make inferences - best guesses - about (unobserved, unknowable) true populations.
 
-The below code generates data from a normal distribution, where the population mean (usually notated as $\mu$) is 7.52 and the population standard deviation (usually noted as $\sigma$) is 3.18. Let's sample 100 simulated "participants".
+The below code generates data from a normal distribution, where the population mean (usually notated as $$\mu$$ ) is 7.52 and the population standard deviation (usually noted as $\sigma$) is 3.18. Let's sample 100 simulated "participants".
 
 ```{r}
+
+#$$\mu$$ -> mu symbol $$\sigma$$ -> sigma symbol
 
 rnorm(n = 100, 
       mean = 7.52, 

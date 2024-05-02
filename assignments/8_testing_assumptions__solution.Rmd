@@ -11,10 +11,9 @@ output:
     toc_float: yes
 ---
 
-```{r, echo=FALSE}
-# dependencies ----
-# repeated here for the sake of completeness 
+```{r}
 
+# dependencies
 library(tidyr)
 library(dplyr)
 library(forcats)
@@ -25,14 +24,14 @@ library(sn)
 library(knitr)
 library(kableExtra)
 library(car)
-```
 
+```
 
 # Overview
 
 What do most statistics textbooks tell you to do when trying to test if two groups' means differ?
 
-1. Check if assumptions of an independent Student's t-test are met, e.g., normality of data and homogeneity of variances.
+1. Check assumptions of an independent Student's t-test are met, e.g., normality of data and homogeneity of variances.
 2. If so, run an interpret an independent Student's t-test.
 3. If not, then perhaps perhaps either 'interpret results with caution' (which always feels vague) or run and interpret a non-parametric test instead.
 
@@ -41,7 +40,7 @@ Why? What benefits are there for doing so? Or what bad things happen if you don'
 In a previous session, we observed that violations of the assumption of normality actually has very little impact on the statistical power of a t-test, as long as the two conditions have similarly non-normal data, which is plausible in many situations. Of course, non-normality does distort estimates of population parameters and standardized effect sizes - but often not the p values themselves. This lesson seeks to answer two related questions:
 
 1. Just like hypothesis tests, assumptions tests are just inferential tests of other properties (e.g., differences in SDs rather than differences in means), and as such they have false-positive rates and false-negative rates (statistical power). What is the power of these tests under different degrees of violations of assumptions? I.e. what proportion of the time do they get it wrong?
-2. What is the aggregate benefit of choosing a hypothesis test based on the results of assumption tests? This multi-step researcher behaviour can itself be simulated. 
+2. What is the aggregate benefit of choosing a hypothesis test based on the results of assumption tests? This multi-step researcher behavior can itself be simulated. 
 
 # Assignment
 
@@ -111,20 +110,6 @@ Note that the Barlett test can be implemented using `car::leveneTest(centre = "m
 rm(list = ls())
 
 
-# dependencies ----
-# repeated here for the sake of completeness 
-
-library(tidyr)
-library(dplyr)
-library(forcats)
-library(readr)
-library(purrr) 
-library(ggplot2)
-library(sn)
-library(knitr)
-library(kableExtra)
-library(car)
-
 # set the seed ----
 # for the pseudo random number generator to make results reproducible
 set.seed(42)
@@ -163,12 +148,14 @@ analyse_data <- function(data) {
   
   require(car)
   
-  # 'TODO'
-  results_levenetest <- leveneTest(score ~ condition,
-                                   center = "median",
-                                   data = data)
+  assumption_test_homogeneity <- 
+    leveneTest(score ~ as.factor(condition), 
+               center = median,
+               data = data)
   
-  results <- tibble()
+  results <- tibble(
+    assumption_test_homogeneity_p = assumption_test_homogeneity[1, "Pr(>F)"]
+  ) 
   
   return(results)
 }
@@ -235,20 +222,6 @@ This simulation therefore attempts to mimic the rules that many statistics textb
 rm(list = ls())
 
 
-# dependencies ----
-# repeated here for the sake of completeness 
-
-library(tidyr)
-library(dplyr)
-library(forcats)
-library(readr)
-library(purrr) 
-library(ggplot2)
-library(sn)
-library(knitr)
-library(kableExtra)
-library(car)
-
 # set the seed ----
 # for the pseudo random number generator to make results reproducible
 set.seed(42)
@@ -288,7 +261,35 @@ analyse_data <- function(data) {
   
   require(car)
   
-  # TODO
+  assumption_test_normality_intervention   <- shapiro.test(data$score[data$condition == "intervention"])
+  assumption_test_normality_control        <- shapiro.test(data$score[data$condition == "control"])
+  
+  assumption_test_homogeneity <- 
+    leveneTest(score ~ as.factor(condition), 
+               center = median,
+               data = data)
+  
+  hypothesis_test_students_t     <- t.test(formula = score ~ condition, 
+                                           data = data,
+                                           var.equal = TRUE,
+                                           alternative = "two.sided")
+  
+  hypothesis_test_mann_whitney_u <- wilcox.test(formula = score ~ condition, 
+                                                data = data,
+                                                alternative = "two.sided")
+  
+  results <- tibble(
+    assumption_test_normality_p_intervention = assumption_test_normality_intervention$p.value, 
+    assumption_test_normality_p_control = assumption_test_normality_control$p.value,
+    assumption_test_homogeneity_p = assumption_test_homogeneity[1, "Pr(>F)"],
+    hypothesis_test_p_students_t = hypothesis_test_students_t$p.value, 
+    hypothesis_test_p_mann_whitney_u = hypothesis_test_mann_whitney_u$p.value
+  ) |>
+    mutate(hypothesis_test_p_conditional = ifelse(assumption_test_normality_p_intervention < .05 |
+                                                    assumption_test_normality_p_control < .05 |
+                                                    assumption_test_homogeneity_p, 
+                                                  hypothesis_test_p_mann_whitney_u,
+                                                  hypothesis_test_p_students_t))
   
   return(results)
 }
