@@ -6,3 +6,12 @@ output: html_document
 ---
 
 
+
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
