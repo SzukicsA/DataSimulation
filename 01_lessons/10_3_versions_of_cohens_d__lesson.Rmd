@@ -29,6 +29,7 @@ And since different packages implement the same math, they won't produce differe
 
 Let's explore this in simulations.
 
+
 ```{r include=FALSE}
 
 knitr::opts_chunk$set(message = FALSE, 
@@ -38,7 +39,8 @@ options(scipen=999)
 
 ```
 
-```{r}
+
+```{r, echo=FALSE}
 
 # Dependencies 
 # N.B.: to ensure full computational reproducibility, R version 4.3.3 should be used. 
@@ -47,14 +49,27 @@ library(groundhog)
 
 groundhog_day = "2024-04-07"
 
-packages = c("effectsize","faux","janitor",
-             "rstatix", "effsize",
-             "psych", "MBESS", "lsr",
-             "metafor", "esc", "esci",
-             "dplyr", "tidyr", "tibble",
-             "forcats", "ggplot2", "stringr")
+packages = c("effectsize",
+             "faux",
+             "janitor",
+             "rstatix",
+             "effsize",
+             "psych",
+             "MBESS",
+             "lsr",
+             "metafor",
+             "esc",
+             "esci",
+             "dplyr",
+             "tidyr",
+             "tibble",
+             "forcats",
+             "ggplot2",
+             "stringr")
 
-groundhog.library(packages, groundhog_day)
+lapply(packages, library, character.only=TRUE)
+
+# groundhog.library(packages, groundhog_day)
 
 ```
 
@@ -460,16 +475,26 @@ multiple_cohens_ds_for_dependent_data <- function(data, hedges_correction = TRUE
         mutate(type = "d_s",
                implementation = "{effectsize}",
                hedges_correction = hedges_correction) |>
-        dplyr::select(implementation, type, hedges_correction, estimate = Hedges_g, ci_lower = CI_low, ci_upper = CI_high),
-      
-      cohens_d_s_psych(data = data, hedges_correction = hedges_correction) |> 
+        dplyr::select(implementation,
+                      type,
+                      hedges_correction,
+                      estimate = Hedges_g,
+                      ci_lower = CI_low,
+                      ci_upper = CI_high),
+      cohens_d_s_psych(data = data,
+                       hedges_correction = hedges_correction) |> 
         as_tibble() |> 
         mutate(type = "d_s",
                implementation = "{psych}",
                hedges_correction = hedges_correction) |>
-        dplyr::select(implementation, type, hedges_correction, estimate, ci_lower, ci_upper),
-      
-      cohens_d_s_mbess(data = data, hedges_correction = hedges_correction) |> 
+        dplyr::select(implementation,
+                      type,
+                      hedges_correction,
+                      estimate,
+                      ci_lower,
+                      ci_upper),
+      cohens_d_s_mbess(data = data,
+                       hedges_correction = hedges_correction) |> 
         mutate(type = "d_s",
                implementation = "{MBESS}",
                hedges_correction = hedges_correction) |>
