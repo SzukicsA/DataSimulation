@@ -1,0 +1,959 @@
+---
+title: "Simulation"
+author: "Andreas Szukics"
+date: "2024-07-04"
+output: html_document
+---
+
+# dependencies
+
+```{r}
+## Libraries ##
+library(tidyr)
+library(dplyr)
+library(purrr) 
+library(ggplot2)
+library(ggtext)
+library(sn)
+library(knitr)
+library(kableExtra)
+library(janitor)
+library(parallel)
+library(doParallel)
+
+## Knitr settings ##
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE)
+
+## Seed ##
+set.seed(42) # the hitchhiker's guide to the galaxy
+
+```
+
+```{r} 
+## for time measurement of the complete script ##
+start_time <- Sys.time()
+```
+
+# Introduction
+
+Research Overview: Enhancing Balance in the Elderly Through Perceptual Learning
+
+For my master's thesis, I am conducting a randomized controlled trial (RCT) aimed at improving balance in retirees aged 65 and above through perceptual learning. This demographic is particularly vulnerable to falls, which can significantly diminish their quality of life and place a considerable burden on the healthcare system. As the global population ages, finding effective prevention and rehabilitation strategies is essential for economic and quality of live reasons.
+
+The primary aim of the study is to assess the effectiveness of perceptual learning (PL) in enhancing balance by training the vestibular system through passive movements. The study will involve three groups:
+
+    Condition 1: Perceptual Learning (PL) - Participants will engage in perceptual learning (left/right) movements
+    Condition 2: Tai-Chi Training - Participants will receive Tai-Chi training from a qualified trainer
+    Condition 3: Control Group - Participants will do nothing except for the pre- and post-measurements.
+
+Both the PL and Tai Chi groups will undergo eight 1-hour training sessions.
+
+Simulation Testing
+
+To ensure the robustness and validity of the study's design, I will perform 3 simulations:
+
+    False Positive Rate Analysis: This will be the first step to determine the likelihood of false positives. I do this to make sure that the study’s methodology is suited for the study.
+
+    
+    Power Check: I will see how likely the study is to find real differences between the groups, considering the sample size and group differences and measure its effect size and how much of the score differences are due to the group differences. This will show how strong the effects of the interventions are.
+
+
+    Effect Size: I will calculate how much the interventions improve the outcomes compared to the control group by looking at the changes before and after the treatment. Cohen’s d will tell me how big the improvements are.
+
+
+## False Positive Rate
+
+### Define the data generation and analysis functions.
+
+```{r}
+
+## Data generation function ##
+generate_data <- function(n_control,
+                          n_intervention_1,     
+                          n_intervention_2,     
+                          mean_control,
+                          mean_intervention_1,
+                          mean_intervention_2,
+                          sd) {
+  data_control <- tibble(condition = "control",
+                         score = rnorm(n = n_control,
+                                       mean = mean_control,
+                                       sd = sd))
+  
+  data_intervention_1 <- tibble(condition = "PL",
+                                score = rnorm(n = n_intervention_1,
+                                              mean = mean_intervention_1,
+                                              sd = sd))
+  
+  data_intervention_2 <- tibble(condition = "tai_chi",
+                                score = rnorm(n = n_intervention_2,
+                                              mean = mean_intervention_2,
+                                              sd = sd))
+  
+  data <- bind_rows(data_control,
+                    data_intervention_1, 
+                    data_intervention_2)
+  
+  return(data)
+  }
+```
+
+
+### Analysis function
+
+```{r}
+## Analysis function ##
+analyse_data <- function(data) {
+  result_aov <- aov(score ~ condition,
+                    data = data)
+  
+  p_value <- summary(result_aov)[[1]][["Pr(>F)"]][1]
+  
+  
+  tibble(p = p_value)
+  }
+
+```
+
+
+### Create the grid of experiment parameters.
+
+```{r}
+## Define experiment parameters ##
+experiment_parameters_grid <- expand_grid(n_control = 30,
+                                          n_intervention_1 = 30,
+                                          n_intervention_2 = 30,
+                                          mean_control = 0,
+                                          mean_intervention_1 = 0,
+                                          mean_intervention_2 = 0,
+                                          sd = 1,
+                                          iteration = 1:10000)
+
+```
+
+
+### Setup parallel processing for efficiency.
+
+```{r, include=FALSE, echo=False}
+## Parallel setup ##
+num_cores <- detectCores() - 1  # Use one less than the number of available cores
+cl <- makeCluster(num_cores)
+
+# Export necessary objects and functions to the cluster
+clusterExport(cl,
+              list("experiment_parameters_grid",
+                   "generate_data",
+                   "analyse_data"))
+
+clusterEvalQ(cl,
+             {library(dplyr)
+              library(tidyr)
+               }
+             )
+
+```
+
+
+### Execute the simulation using parallel processing and measure the time.
+
+```{r}
+## Measure the time for the simulation ##
+simulation_time <- system.time({
+  simulation <- experiment_parameters_grid |>
+    mutate(generated_data = parLapply(cl,
+                                      1:n(),
+                                      function(i) {
+                                        set.seed(42 + i)
+                                        params <- experiment_parameters_grid[i, ]
+                                        generate_data(params$n_control,
+                                                      params$n_intervention_1, 
+                                                      params$n_intervention_2,
+                                                      params$mean_control,
+                                                      params$mean_intervention_1,
+                                                      params$mean_intervention_2,
+                                                      params$sd)
+                                                   })) |>
+    mutate(analysis_results = parLapply(cl,
+                                        generated_data,
+                                        analyse_data)) |>
+    mutate(p_value = map_dbl(analysis_results,
+                             ~ .x$p))
+  })
+
+## Stop cluster ##
+stopCluster(cl)
+
+## Calculate false positive rate ##
+result <- simulation |>
+  summarise(false_positive_rate = mean(p_value < 0.05)) |>
+  pull(false_positive_rate)
+
+## Print the time taken for the simulation ##
+print(simulation_time)
+
+
+```
+
+
+### Calculate the false positive rate and display the results in tables and plots.
+
+The following table will show the results in a table
+
+```{r}
+## Display Multiple Rows of Results ##
+simulation_summary <- simulation |>
+  unnest(analysis_results) |>
+  select(n_control,
+         n_intervention_1,
+         n_intervention_2, 
+         mean_control, 
+         mean_intervention_1, 
+         mean_intervention_2, 
+         sd, 
+         p_value) |>
+  mutate(p_value = round(p_value,
+                         3))
+
+library(DT)
+
+simulation_summary |>
+  select(n_control,
+         mean_control,
+         sd,
+         p_value) |> 
+  rename(n = n_control,
+         mean = mean_control,
+         sd = sd,
+         p_value = p_value) |> 
+  datatable()
+```
+
+
+### Display detailed results in tables.
+
+```{r}
+
+## Simplified Table with Key Columns and Rounded Values ##
+simulation_summary <- simulation |>
+  unnest(analysis_results) |>
+  group_by(n_control,
+           n_intervention_1,
+           n_intervention_2,
+           mean_control,
+           mean_intervention_1,
+           mean_intervention_2,
+           sd) |>
+  summarize(positive_rate = janitor::round_half_up(mean(p < .05),
+                                                   digits = 3),
+            mean_p_value  = janitor::round_half_up(mean(p_value),
+                                                   digits = 3),
+            sd_p_value    = janitor::round_half_up(sd(p_value),
+                                                   digits = 3),
+            min_p_value   = janitor::round_half_up(min(p_value),
+                                                   digits = 3),
+            max_p_value   = janitor::round_half_up(max(p_value),
+                                                   digits = 3)
+            ) |>
+  ungroup() |> 
+  select(n_control,
+         mean_control,
+         sd,
+         positive_rate,
+         mean_p_value,
+         sd_p_value,
+         min_p_value,
+         max_p_value)
+
+## Display Table ##
+simulation_summary |>
+  kable(col.names = c("n/group",
+                      "mean/group",
+                      "sd/group",
+                      "positive rate",
+                      "mean p",
+                      "sd p-value",
+                      "min p-value",
+                      "max p-value"),
+        align = "c") |>
+  kable_classic(full_width = FALSE,
+                html_font = "Arial") |>
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover",
+                                      "condensed"),
+                full_width = F)
+
+```
+
+The table shows that the test correctly identifies no effect 95% of the time. On average, the p-values (0.503) don’t provide strong evidence against the null hypothesis, and they vary widely from 0 to 1, meaning the results can range from very significant to not significant at all. This suggests the test behaves as expected.
+ 
+
+### Calculate means and standard errors
+
+```{r}
+## Calculate Means and Standard Errors ##
+summary_data <- simulation |>
+  unnest(generated_data) |>
+  group_by(condition) |>
+  summarize(mean_score = mean(score),
+            sem = sd(score) / sqrt(n()))
+```
+
+
+```{r}
+summary_data |>
+  mutate(mean_score = round(mean_score,
+                            3),
+         sem = round(sem,
+                     3)
+         ) |>
+  kable(col.names = c("Condition",
+                      "Mean Score",
+                      "Standard Error"),
+        align = "c") |>
+  kable_classic(full_width = FALSE,
+                html_font = "Arial") |>
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover",
+                                      "condensed"),
+                full_width = F)
+
+
+```
+
+
+```{r}
+## Create the Plot ##
+ggplot(summary_data,
+       aes(x = condition,
+           y = mean_score)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_score - sem,
+                    ymax = mean_score + sem),
+                width = 0.2) +
+  labs(title = "Mean Score by Condition with Standard Error",
+       x = "Condition",
+       y = "Mean Score") +
+  theme_minimal()
+
+```
+
+
+The results of the table and the graph show that in this simulation, the average scores for the different groups (PL, control, Tai Chi) are similar, and the small errors mean the results are steady and reliable across different runs. Although there seems to be a sig. difference between Tai-Chi and the other groups, this could be because the average scores are so small and the simulations many iterations. I still don't think that there is any reason for concern seeing as how close the results are to 0.
+
+
+### Create plots for the false positive rate
+
+```{r}
+## Set the significance level
+alpha <- 0.05
+
+## Extract p-values from the simulation
+p_values <- simulation$p_value
+
+## Calculate the False Positive Rate
+false_positive_rate <- mean(p_values < alpha)
+
+
+```
+
+
+```{r}
+## 1. Bar Plot
+bar_data <- tibble(Outcome = c("False Positive",
+                               "True Negative"),
+                   Count = c(sum(p_values < alpha),
+                             sum(p_values >= alpha)))
+
+ggplot(bar_data,
+       aes(x = Outcome,
+           y = Count,
+           fill = Outcome)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "turbo") +
+  labs(title = "False Positive Rate",
+       x = "Outcome",
+       y = "Count") +
+  theme_minimal()
+```
+
+The plot shows that the test rarely makes mistakes (reporting false positive), and shows how often there are true negatives. Meaning the  test is appropriate and keeps the chances of a false alarm low.
+
+
+```{r}
+## 2. Line Plot
+fpr_data <- tibble(Iteration = 1:length(p_values),
+                   FPR = cumsum(p_values < alpha) / (1:length(p_values)))
+
+ggplot(fpr_data,
+       aes(x = Iteration,
+           y = FPR)) +
+  geom_line(color = "red") +
+  labs(title = "False Positive Rate Over Iterations",
+       x = "Iteration",
+       y = "Cumulative False Positive Rate") +
+  theme_minimal()
+```
+The plot shows an initial high fluctuation, however as the iterations go on the false positive rate sinks to around 0.05 and stays in similar range. This is an inditation that the test performs as it should.
+
+
+```{r}
+# sample values from a uniform distribution, from the range 0 to 1
+tibble(p_values = runif(n = 100000,
+                        min = 0,
+                        max = 1)) |>
+  # create a decision for each value, with values < .05 labelled as "significant" and those > .05 as "non-significant"
+  mutate(decision = ifelse(p_values < 0.05,
+                           "significant",
+                           "non-significant")) |>
+  # plot a histogram of these values, with the fill contingent on the the decision
+  ggplot(aes(x = p_values,
+             fill = decision)) +
+  geom_histogram(binwidth = 0.025,
+                 boundary = 0,
+                 color = "white") +
+  scale_fill_viridis_d(option = "turbo",
+                       begin = 0.3,
+                       end = 0.7, 
+                       direction = -1) +
+  geom_vline(xintercept = 0.05, 
+             color = "red",
+             linetype = "dashed") +
+  scale_x_continuous(labels = c(0,
+                                0.05,
+                                0.25,
+                                0.50,
+                                0.75,
+                                1.0),
+                     breaks = c(0,
+                                0.05,
+                                0.25,
+                                0.50,
+                                0.75,
+                                1.0), 
+                     limits = c(0,
+                                1)) +
+  labs(title = "Histogram of p-values",
+       x = "p-value",
+       y = "Frequency"
+       ) +
+  theme_minimal()
+
+
+```
+
+This histogram shows the results of many tests, with most of them not finding a significant effect. The red line marks the common cutoff (0.05) for significance, and only a small number of tests found significant results. This is a different plot showing the results of the bar plots above.
+
+
+## Power analysis
+
+### Define the data generation and analysis functions.
+
+```{r}
+## Data generation function ##
+generate_data <- function(n_control,
+                          n_intervention_1,
+                          n_intervention_2,     
+                          mean_control,
+                          mean_intervention_1,
+                          mean_intervention_2,
+                          sd) {
+  data_control <- tibble(condition = "control",
+                         score = rnorm(n = n_control,
+                                       mean = mean_control,
+                                       sd = sd))
+  
+  data_intervention_1 <- tibble(condition = "group_1",
+                                score = rnorm(n = n_intervention_1,
+                                              mean = mean_intervention_1, 
+                                              sd = sd))
+  
+  data_intervention_2 <- tibble(condition = "group_2",
+                                score = rnorm(n = n_intervention_2,
+                                              mean = mean_intervention_2, 
+                                              sd = sd))
+  
+  data <- bind_rows(data_control, data_intervention_1, data_intervention_2)
+  
+  return(data)
+}
+``` 
+
+
+### Analysis function
+
+```{r}
+## Analysis function with effect size calculation ##
+analyse_data <- function(data) {
+  result_aov <- aov(score ~ condition,
+                    data = data)
+  
+  summary_aov <- summary(result_aov)
+  
+  # Extract p-value
+  p_value <- summary_aov[[1]][["Pr(>F)"]][1]
+  
+  # Calculate eta-squared (effect size)
+  ss_total <- sum((data$score - mean(data$score))^2)
+  
+  ss_between <- sum((tapply(data$score, data$condition, mean) - mean(data$score))^2) * length(unique(data$condition))
+  
+  eta_squared <- ss_between / ss_total
+  
+  tibble(p = p_value,
+         eta_squared = eta_squared)
+}
+
+```
+
+
+### Create the grid of experiment parameters.
+
+```{r}
+## Define experiment parameters for power calculation ##
+experiment_parameters_grid <- expand_grid(n_control = 30,
+                                          n_intervention_1 = 30,
+                                          n_intervention_2 = 30,
+                                          mean_control = 0,          # True mean for control group
+                                          mean_intervention_1 = 1, # Hypothetical mean for group 1 (effect size)
+                                          mean_intervention_2 = 0.5,   # Hypothetical mean for group 2 (effect size)
+                                          sd = 1,
+                                          iteration = 1:10000)
+```
+
+
+### Setup parallel processing for efficiency.
+
+```{r}
+## Parallel setup ##
+num_cores <- detectCores() - 1  # Use one less than the number of available cores
+cl <- makeCluster(num_cores)
+
+# Export necessary objects and functions to the cluster
+clusterExport(cl,
+              list("experiment_parameters_grid",
+                   "generate_data",
+                   "analyse_data"))
+
+clusterEvalQ(cl,
+             {library(dplyr)
+              library(tidyr)
+              }
+             )
+
+```
+
+
+### Execute the simulation using parallel processing and measure the time.
+
+```{r}
+
+## Measure the time for the simulation ##
+simulation_time <- system.time({
+  simulation <- experiment_parameters_grid |>
+    mutate(generated_data = parLapply(cl,
+                                      1:n(),
+                                      function(i) {
+                                        set.seed(42 + i)
+                                        params <- experiment_parameters_grid[i, ]
+                                        generate_data(params$n_control,
+                                                      params$n_intervention_1, 
+                                                      params$n_intervention_2,
+                                                      params$mean_control,
+                                                      params$mean_intervention_1,
+                                                      params$mean_intervention_2,
+                                                      params$sd)})
+           ) |>
+    mutate(analysis_results = parLapply(cl,
+                                       generated_data,
+                                       analyse_data)) |>
+    mutate(p_value = map_dbl(analysis_results,
+                             ~ .x$p),
+           eta_squared = map_dbl(analysis_results,
+                                 ~ .x$eta_squared))
+})
+
+## Stop cluster ##
+stopCluster(cl)
+
+## Calculate power for alternative hypothesis scenario ##
+power_result <- simulation |>
+  filter(mean_control == 0,
+         mean_intervention_1 == 1,
+         mean_intervention_2 == 0.5) |>
+  summarise(power = mean(p_value < 0.05)) |>
+  pull(power)
+
+## Calculate mean effect size for alternative hypothesis scenario ##
+mean_effect_size <- simulation |>
+  filter(mean_control == 0,
+         mean_intervention_1 == 1,
+         mean_intervention_2 == 0.5) |>
+  summarise(mean_eta_squared = mean(eta_squared)) |>
+  pull(mean_eta_squared)
+
+## Print the time taken for the simulation ##
+print(simulation_time)
+
+```
+
+
+### Tables and Graphs
+
+```{r}
+# Summarise the results
+summary_results <- simulation |>
+  filter(mean_control == 0,
+         mean_intervention_1 == 1,
+         mean_intervention_2 == 0.5) |>
+  summarise(power = round(mean(p_value < 0.05), digits = 3),
+            mean_eta_squared = round(mean(eta_squared), digits = 3))
+
+# Display the results as a table
+summary_results |> 
+  kable(col.names = c("Power",
+                      "Mean Effect Size (eta-squared)"),
+        align = "c") |>
+  kable_classic(full_width = FALSE,
+                html_font = "Arial") |>
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover",
+                                      "condensed"),
+                full_width = F)
+```
+
+The results show that the study has a 93.3% chance of correctly finding a real difference between the groups if one exists, meaning it's highly likely to detect an effect. However, the effect size is small, with only 1.6% of the differences because of to the interventions, indicating that while the study can detect differences, those differences aren't very large.
+
+
+```{r}
+library(ggplot2)
+
+# Plot the distribution of p-values
+ggplot(simulation, aes(x = p_value)) +
+  geom_histogram(binwidth = 0.01, fill = "steelblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of P-Values", x = "P-Value", y = "Frequency")
+```
+
+The histogram shows that most p-values are very close to 0, indicating that most results are significant. With few results being above 0.05 I can assume that the  effect is strong and consistent. This suggests I will most likely detect a real difference.
+
+
+```{r}
+
+# Plot the distribution of effect sizes (eta-squared)
+ggplot(simulation, aes(x = eta_squared)) +
+  geom_histogram(binwidth = 0.01, fill = "steelblue", color = "black") +
+  scale_fill_viridis_d(option = "turbo") +
+  theme_minimal() +
+  labs(title = "Distribution of Effect Sizes (Eta-Squared)", x = "Eta-Squared", y = "Frequency")
+
+```
+
+However this histogram shows the distribution of effect sizes (eta-squared). Most of the effect sizes are between 0.01 and 0.02, meaning that the effects are small. There are very few cases where the effect size is higher than 0.03, so while the effects are consistent, they are not very large.
+
+```{r}
+
+library(zoo)  # For rolling functions
+
+# Calculate rolling average of power with a window size of 100 iterations
+simulation <- simulation %>%
+  mutate(rolling_power = rollmean(as.numeric(p_value < 0.05), k = 100, fill = NA, align = "right"))
+
+# Plot the rolling average of power
+ggplot(simulation, aes(x = iteration, y = rolling_power)) +
+  geom_line(color = "steelblue") +
+  theme_minimal() +
+  labs(title = "Rolling Average of Power Across Simulations", x = "Iteration", y = "Rolling Power (p-value < 0.05)")
+
+```
+
+the line chart shows the rolling average of power from the simulation. The fluctuation shows that there is a variability in detecting an effect but it is often between 1 and 0.9 meaning its likely that I will find a true effect.
+
+## Effect size
+
+```{r}
+## Data generation function ##
+generate_data <- function(n_control,            # Control
+                          n_intervention_1,     # Perceptual learning
+                          n_intervention_2,     # Tai-Chi
+                          pre_mean,             # Pre-treatment mean for all groups
+                          effect_control,       # Effect size for control
+                          effect_intervention_1,# Effect size for intervention 1
+                          effect_intervention_2,# Effect size for intervention 2
+                          sd_pre,               # Standard deviation for pre-treatment
+                          sd_change             # Standard deviation for change scores
+                          ) {
+  
+  # Simulate pre-treatment scores
+  pre_control <- rnorm(n_control,
+                       mean = pre_mean,
+                       sd = sd_pre)
+  
+  
+  pre_intervention_1 <- rnorm(n_intervention_1,
+                              mean = pre_mean,
+                              sd = sd_pre)
+  
+  
+  pre_intervention_2 <- rnorm(n_intervention_2,
+                              mean = pre_mean,
+                              sd = sd_pre)
+  
+  # Simulate post-treatment scores by adding the effect size multiplied by the SD
+  post_control <- pre_control + rnorm(n_control,
+                                      mean = effect_control * sd_pre,
+                                      sd = sd_change)
+  
+  
+  post_intervention_1 <- pre_intervention_1 + rnorm(n_intervention_1,
+                                                    mean = effect_intervention_1 * sd_pre,
+                                                    sd = sd_change)
+  
+  
+  post_intervention_2 <- pre_intervention_2 + rnorm(n_intervention_2,
+                                                    mean = effect_intervention_2 * sd_pre,
+                                                    sd = sd_change)
+  
+  
+  data_control <- tibble(condition = "control",
+                         pre_score = pre_control,
+                         post_score = post_control)
+  
+  data_intervention_1 <- tibble(condition = "PL",
+                                pre_score = pre_intervention_1,
+                                post_score = post_intervention_1)
+  
+  data_intervention_2 <- tibble(condition = "tai_chi",
+                                pre_score = pre_intervention_2,
+                                post_score = post_intervention_2)
+  
+  data <- bind_rows(data_control,
+                    data_intervention_1,
+                    data_intervention_2)
+  
+  return(data)
+  }
+```
+
+
+### Analysis function
+
+```{r}
+## Analysis function ##
+calculate_effect_size <- function(data) {
+  mean_diff_1 <- mean(data$post_score[data$condition == "PL"]) - mean(data$post_score[data$condition == "control"])
+  
+  
+  mean_diff_2 <- mean(data$post_score[data$condition == "tai_chi"]) - mean(data$post_score[data$condition == "control"])
+  
+  
+  
+  pooled_sd <- sqrt(((sd(data$post_score[data$condition == "PL"])^2) + (sd(data$post_score[data$condition == "control"])^2) + (sd(data$post_score[data$condition == "tai_chi"])^2)) / 3)
+  
+  cohen_d_1 <- mean_diff_1 / pooled_sd
+  
+  cohen_d_2 <- mean_diff_2 / pooled_sd
+  
+  tibble(cohen_d_1 = cohen_d_1,
+         cohen_d_2 = cohen_d_2)
+  }
+```
+
+
+### Create the grid of experiment parameters
+
+The parameters I have taken from the previous study
+
+```{r}
+## Define experiment parameters ##
+experiment_parameters_grid <- expand_grid(n_control = 30,
+                                          n_intervention_1 = 30,
+                                          n_intervention_2 = 30,
+                                          pre_mean = 0.94,              # Pre-treatment mean
+                                          effect_control = 0,           # No real effect for control
+                                          effect_intervention_1 = 0.5,  # Moderate to large effect for intervention 1
+                                          effect_intervention_2 = 0.3,  # Small to moderate effect for intervention 2
+                                          sd_pre = 0.18,                # Standard deviation for pre-treatment
+                                          sd_change = 0.072,                # Standard deviation for change scores
+                                          iteration = 1:10000)
+```
+
+
+### Setup parallel processing for efficiency
+
+```{r}
+## Parallel setup ##
+num_cores <- detectCores() - 1  # Use one less than the number of available cores
+cl <- makeCluster(num_cores)
+
+# Export necessary objects and functions to the cluster
+clusterExport(cl,
+              list("experiment_parameters_grid",
+                   "generate_data",
+                   "analyse_data"))
+
+clusterEvalQ(cl,
+             {library(dplyr)
+              library(tidyr)
+              }
+             )
+
+```
+
+
+### Execute the simulation using parallel processing and measure the time.
+
+```{r}
+## Measure the time for the simulation ##
+simulation_time <- system.time({
+  ## Run simulation with parallel processing ##
+  simulation <- experiment_parameters_grid |>
+    mutate(generated_data = parLapply(cl,
+                                      1:n(),
+                                      function(i) {
+                                        set.seed(42 + i)  # Set a different seed for each worker
+                                        params <- experiment_parameters_grid[i, ]
+                                        generate_data(params$n_control,
+                                                      params$n_intervention_1, 
+                                                      params$n_intervention_2,
+                                                      params$pre_mean,
+                                                      params$effect_control,
+                                                      params$effect_intervention_1,
+                                                      params$effect_intervention_2,
+                                                      params$sd_pre,
+                                                      params$sd_change)})) |>
+    mutate(effect_size_results = parLapply(cl,
+                                           generated_data,
+                                           calculate_effect_size)) |>
+    mutate(cohen_d_1 = map_dbl(effect_size_results,
+                               ~ .x$cohen_d_1),
+           cohen_d_2 = map_dbl(effect_size_results,
+                               ~ .x$cohen_d_2))})
+
+## Stop cluster ##
+stopCluster(cl)
+
+## Calculate average effect sizes ##
+result <- simulation |>
+  summarise(mean_cohen_d_1 = mean(cohen_d_1),
+            mean_cohen_d_2 = mean(cohen_d_2))
+
+## Print the time taken for the simulation ##
+print(simulation_time)
+
+```
+
+### tables and graphs 
+
+```{r}
+## df for table and plotting ##
+result_table <- tibble(Intervention = c("Perceptual Learning (PL)",
+                                        "Tai-Chi"),
+                       Mean_Cohen_d = round(c(result$mean_cohen_d_1,
+                                              result$mean_cohen_d_2),
+                                            digits = 3))
+
+## Display the table ##
+result_table|> 
+  kable(col.names = c("Condition",
+                      "Mean cohen's d"),
+        align = "c") |>
+  kable_classic(full_width = FALSE,
+                html_font = "Arial") |>
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover",
+                                      "condensed"),
+                full_width = F)
+
+```
+
+The results show that Perceptual Learning has a bigger effect (0.467) than Tai-Chi which also has an effect all be it smaller (0.275). This means that while both interventions were effective, Perceptual Learning has a bigger effect which is what I expect when comparing the verstibular progress on a motion device.
+
+
+```{r}
+## Combine the effect sizes into one data frame for easier plotting ##
+effect_size_data <- simulation |>
+  select(cohen_d_1,
+         cohen_d_2) |>
+  pivot_longer(cols = everything(),
+               names_to = "Intervention",
+               values_to = "Cohen_d") |>
+  mutate(Intervention = recode(Intervention, 
+                               cohen_d_1 = "Perceptual Learning (PL)",
+                               cohen_d_2 = "Tai-Chi"))
+
+
+## Histogram of Cohen's d ##
+ggplot(effect_size_data,
+       aes(x = Cohen_d,
+           fill = Intervention)) +
+  geom_histogram(alpha = 0.6,
+                 position = "identity",
+                 bins = 30) +
+  scale_fill_viridis_d(option = "turbo") +
+  labs(title = "Distribution of Cohen's d for Each Intervention",
+       x = "Cohen's d",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+
+This plot shows that Perceptual Learning tends to have a stronger impact, while Tai-Chi has a smaller effect. The overlap in the distributions shows that both have an effect that does not differ much from each other but Perceptual Learning consistently shows a bigger effect.
+
+
+```{r}
+
+# Bar plot of average Cohen's d
+ggplot(result_table,
+       aes(x = Intervention,
+           y = Mean_Cohen_d,
+           fill = Intervention)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "turbo") +
+  labs(title = "Average Effect Size (Cohen's d) by Intervention",
+       x = "Intervention",
+       y = "Mean Cohen's d") +
+  theme_minimal()
+
+```
+
+This bar plot displays the difference in effect and that Perceptual learning has almost double that
+
+# Conclusion
+
+The simulation study tested the reliability of a trial designed to see if Perceptual Learning (PL) and Tai-Chi can improve balance in older adults:
+
+    False Positive Rate: The tests used were accurate, with a false positive rate of around 5%, meaning they rarely show an effect when there isn't one.
+
+    Power Analysis: The study has a 93.3% chance of correctly finding differences between the groups, making it likely to detect real effects, the interpretation have to be careful though because of the small effect.
+
+    Effect Size: PL had a moderate impact on balance (Cohen's d = 0.467), while Tai Chi had a smaller but still meaningful effect (Cohen's d = 0.275).
+
+The study is well-designed to detect real differences, with PL showing a slightly stronger effect on balance improvement than Tai-Chi. This supports further research into using PL to help older adults improve their balance (or at least I hope so when actually analysing the data)
+
+
+# Total runtime script
+
+```{r}
+## End time measurement simulation ##
+end_time <- Sys.time()
+
+total_time <- end_time - start_time
+
+formatted_time <- sprintf("Total execution time: %f seconds",
+                          as.numeric(total_time,
+                                     units = "secs"))
+
+cat(formatted_time)
+
+```
+
+
+
+# Session information.
+
+```{r}
+sessionInfo()
+```

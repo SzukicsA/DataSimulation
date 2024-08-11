@@ -14,6 +14,9 @@ output:
 server: shiny
 ---
 
+```{r}
+library(shiny)
+```
 
 Careless responding can substantially distort observed correlations between variables, even when careless responding is random (i.e., follows a uniform distribution and is uncorrelated between variables). 
 
