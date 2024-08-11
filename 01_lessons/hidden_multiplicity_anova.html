@@ -1617,7 +1617,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -1886,14 +1886,30 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">Hidden multiplicity in multi-way ANOVA</h1>
 <h4 class="author">Ian Hussey</h4>
-<h4 class="date">20 May, 2024</h4>
+<h4 class="date">06 August, 2024</h4>
 
 </div>
 
 
 <div id="todo" class="section level1">
 <h1>TODO</h1>
-<p>compare math positivity rate and simulated one, ensure they match</p>
+<ul>
+<li>flexibility sims don’t produce the same numbers as static ones,
+despite using same data. sth’s off</li>
+<li>flexibility sims don’t convey the point well: i’m trying to say that
+simpler models get reported sometimes. how to capture which models the
+sig results came from? rank results and provide counts of the number of
+IVs in the final results? ie what’s the distribution of IVs in the
+reported results?</li>
+<li>needs frontmatter on how ANOVA is taught as though it controls
+familywise error but doesn’t.</li>
+<li>and middle matter on how holm corrects can restore the
+FPR==alpha.</li>
+<li>is it feasible to add other configural models, eg. x1 * x3? this
+would blow up FPR further. but by how much?</li>
+<li>add in this or another less correlated outcome variables, talk about
+conjunctive vs disjunctive claims.</li>
+</ul>
 </div>
 <div id="simulations" class="section level1">
 <h1>Simulations</h1>
@@ -1901,9 +1917,9 @@ border-radius: 0px;
 <h2>Arbitrary numbrer of between groups conditions with two levels
 each</h2>
 <p>Arbitrary number of 2X between factors.</p>
-<p>Here I employ up to 3, so it’s a maximum of a 2 X 2 X 2 ANOVA. For
-example, a 2 (high vs low cognitive load) X 2 (intervention vs control)
-X 2 (high vs low believability) design.</p>
+<p>Here I employ up to 4, so it’s a maximum of a 2 X 2 X 2 X 2 ANOVA.
+For example, a 2 (intervention vs control) X 2 (men vs women) X 2
+(LGBTQ+ vs straight) X 2 (right-handed vs left-handed) design.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># dependencies ----</span></span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
@@ -2004,6 +2020,18 @@ expand grid, we give this just one value - the one for the max number of
 IVs. When then analyze the same generated data multiple ways, using
 different numbers of IVs: ivs, ivs - 1, … 1. This also requires some
 wrangling of the results.</p>
+<p>This simulates a situation where people report the ANOVA as one
+of:</p>
+<ul>
+<li>2 (intervention vs control)</li>
+<li>2 (intervention vs control) X 2 (men vs women)</li>
+<li>2 (intervention vs control) X 2 (men vs women) X 2 (LGBTQ+ vs
+straight)</li>
+<li>2 (intervention vs control) X 2 (men vs women) X 2 (LGBTQ+ vs
+straight) X 2 (right-handed vs left-handed)</li>
+</ul>
+<p>where they added an additional IV if the simpler one didn’t produce
+significant results.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># define generate data function ----</span></span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>generate_data <span class="ot">&lt;-</span> <span class="cf">function</span>(n,</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>                          ivs_generated,</span>
@@ -2138,7 +2166,7 @@ wrangling of the results.</p>
 <span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a>simulation_summary <span class="sc">|&gt;</span></span>
 <span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a>  <span class="fu">kable</span>() <span class="sc">|&gt;</span></span>
 <span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a>  <span class="fu">kable_classic</span>(<span class="at">full_width =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<table class=" lightable-classic" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<table class=" lightable-classic" style="color: black; font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:right;">
@@ -2301,7 +2329,7 @@ produce even higher false positives.</p>
 <span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>simulation_summary_selective_reporting <span class="sc">|&gt;</span></span>
 <span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="fu">kable</span>() <span class="sc">|&gt;</span></span>
 <span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="fu">kable_classic</span>(<span class="at">full_width =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<table class=" lightable-classic" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<table class=" lightable-classic" style="color: black; font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:right;">
@@ -2499,7 +2527,7 @@ only the other parameters or the three way interaction.</p>
 <span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>simulation_summary <span class="sc">|&gt;</span></span>
 <span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>  <span class="fu">kable</span>() <span class="sc">|&gt;</span></span>
 <span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>  <span class="fu">kable_classic</span>(<span class="at">full_width =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<table class=" lightable-classic" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<table class=" lightable-classic" style="color: black; font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:right;">
@@ -2570,7 +2598,7 @@ proportion_positive_results
 <span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>simulation_summary_selective_reporting <span class="sc">|&gt;</span></span>
 <span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="fu">kable</span>() <span class="sc">|&gt;</span></span>
 <span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="fu">kable_classic</span>(<span class="at">full_width =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<table class=" lightable-classic" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<table class=" lightable-classic" style="color: black; font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:right;">
@@ -2631,7 +2659,7 @@ proportion_positive_results
 <span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>simulation_summary_selective_reporting_2 <span class="sc">|&gt;</span></span>
 <span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a>  <span class="fu">kable</span>() <span class="sc">|&gt;</span></span>
 <span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a>  <span class="fu">kable_classic</span>(<span class="at">full_width =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<table class=" lightable-classic" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<table class=" lightable-classic" style="color: black; font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:right;">
@@ -2668,19 +2696,32 @@ proportion_positive_results
 </div>
 </div>
 </div>
+<div id="check-your-understanding" class="section level1">
+<h1>Check your understanding</h1>
+<ul>
+<li>does the FPR depend on the sample size?</li>
+<li>does the FPR depend on whether how many levels the IV has? e.g., 2X
+vs. 3X etc? why/why not?</li>
+<li>when one of the IVs is within-subjects, does the FPR depend on the
+correlation between the time points? why/why not?</li>
+<li>under what situations would the opposite occur, i.e. would these go
+from mattering to not mattering or vice versa?</li>
+</ul>
+</div>
 <div id="session-info" class="section level1">
 <h1>Session info</h1>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code></pre></div>
-<pre><code>## R version 4.3.3 (2024-02-29)
-## Platform: aarch64-apple-darwin20 (64-bit)
-## Running under: macOS Sonoma 14.4.1
+<pre><code>## R version 4.3.3 (2024-02-29 ucrt)
+## Platform: x86_64-w64-mingw32/x64 (64-bit)
+## Running under: Windows 11 x64 (build 22631)
 ## 
 ## Matrix products: default
-## BLAS:   /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/lib/libRblas.0.dylib 
-## LAPACK: /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+## 
 ## 
 ## locale:
-## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+## [1] LC_COLLATE=German_Switzerland.utf8  LC_CTYPE=German_Switzerland.utf8   
+## [3] LC_MONETARY=German_Switzerland.utf8 LC_NUMERIC=C                       
+## [5] LC_TIME=German_Switzerland.utf8    
 ## 
 ## time zone: Europe/Zurich
 ## tzcode source: internal
@@ -2689,35 +2730,32 @@ proportion_positive_results
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## other attached packages:
-##  [1] kableExtra_1.4.0 knitr_1.45       afex_1.3-1       lme4_1.1-35.2   
+##  [1] kableExtra_1.4.0 knitr_1.48       afex_1.3-1       lme4_1.1-35.5   
 ##  [5] Matrix_1.6-5     janitor_2.2.0    faux_1.2.1       purrr_1.0.2     
 ##  [9] tibble_3.2.1     dplyr_1.1.4      tidyr_1.3.1     
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] gtable_0.3.4        xfun_0.43           bslib_0.7.0        
-##  [4] ggplot2_3.5.1       lattice_0.22-6      numDeriv_2016.8-1.1
-##  [7] vctrs_0.6.5         tools_4.3.3         generics_0.1.3     
-## [10] parallel_4.3.3      sandwich_3.1-0      fansi_1.0.6        
-## [13] highr_0.10          pkgconfig_2.0.3     lifecycle_1.0.4    
-## [16] compiler_4.3.3      stringr_1.5.1       munsell_0.5.1      
-## [19] codetools_0.2-20    lmerTest_3.1-3      carData_3.0-5      
-## [22] snakecase_0.11.1    htmltools_0.5.8.1   sass_0.4.9         
-## [25] yaml_2.3.8          pillar_1.9.0        car_3.1-2          
-## [28] nloptr_2.0.3        jquerylib_0.1.4     MASS_7.3-60.0.1    
-## [31] cachem_1.0.8        boot_1.3-30         abind_1.4-5        
-## [34] multcomp_1.4-25     nlme_3.1-164        tidyselect_1.2.1   
-## [37] digest_0.6.35       mvtnorm_1.2-4       stringi_1.8.3      
-## [40] reshape2_1.4.4      splines_4.3.3       fastmap_1.1.1      
-## [43] grid_4.3.3          colorspace_2.1-0    cli_3.6.2          
-## [46] magrittr_2.0.3      survival_3.5-8      utf8_1.2.4         
-## [49] TH.data_1.1-2       withr_3.0.0         scales_1.3.0       
-## [52] lubridate_1.9.3     timechange_0.3.0    estimability_1.5   
-## [55] rmarkdown_2.26      emmeans_1.10.0      zoo_1.8-12         
-## [58] coda_0.19-4.1       evaluate_0.23       viridisLite_0.4.2  
-## [61] rlang_1.1.3         Rcpp_1.0.12         xtable_1.8-4       
-## [64] glue_1.7.0          xml2_1.3.6          svglite_2.1.3      
-## [67] rstudioapi_0.16.0   minqa_1.2.6         jsonlite_1.8.8     
-## [70] R6_2.5.1            plyr_1.8.9          systemfonts_1.0.6</code></pre>
+##  [1] sass_0.4.9          utf8_1.2.4          generics_0.1.3     
+##  [4] xml2_1.3.6          stringi_1.8.4       lattice_0.22-6     
+##  [7] digest_0.6.36       magrittr_2.0.3      evaluate_0.24.0    
+## [10] grid_4.3.3          timechange_0.3.0    fastmap_1.2.0      
+## [13] plyr_1.8.9          jsonlite_1.8.8      fansi_1.0.6        
+## [16] viridisLite_0.4.2   scales_1.3.0        numDeriv_2016.8-1.1
+## [19] jquerylib_0.1.4     abind_1.4-5         cli_3.6.3          
+## [22] rlang_1.1.4         munsell_0.5.1       splines_4.3.3      
+## [25] withr_3.0.1         cachem_1.1.0        yaml_2.3.10        
+## [28] parallel_4.3.3      tools_4.3.3         reshape2_1.4.4     
+## [31] nloptr_2.1.1        minqa_1.2.7         colorspace_2.1-1   
+## [34] ggplot2_3.5.1       boot_1.3-30         vctrs_0.6.5        
+## [37] R6_2.5.1            lifecycle_1.0.4     lubridate_1.9.3    
+## [40] snakecase_0.11.1    stringr_1.5.1       car_3.1-2          
+## [43] MASS_7.3-60.0.1     pkgconfig_2.0.3     lmerTest_3.1-3     
+## [46] pillar_1.9.0        bslib_0.8.0         gtable_0.3.5       
+## [49] Rcpp_1.0.13         glue_1.7.0          systemfonts_1.1.0  
+## [52] highr_0.11          xfun_0.46           tidyselect_1.2.1   
+## [55] rstudioapi_0.16.0   htmltools_0.5.8.1   nlme_3.1-165       
+## [58] svglite_2.1.3       carData_3.0-5       rmarkdown_2.27     
+## [61] compiler_4.3.3</code></pre>
 </div>
 
 
